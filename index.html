@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SULTAN NASR CARD | سلطان كارد</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --gold: #ffb100; --bg: #090a0f; --card: #12141d; --border: #22262f; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; min-height: 100vh; }
+        .sidebar { width: 260px; background: var(--card); border-left: 1px solid var(--border); padding: 30px 20px; position: fixed; height: 100%; display: flex; flex-direction: column; }
+        .logo { font-size: 24px; font-weight: 900; color: var(--gold); text-align: center; margin-bottom: 40px; }
+        .nav-link { color: #8b949e; padding: 15px; border-radius: 12px; margin-bottom: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.3s; }
+        .nav-link:hover, .nav-link.active { background: rgba(255,177,0,0.1); color: var(--gold); }
+        .main { margin-right: 260px; flex: 1; padding: 40px; }
+        .balance-card { background: linear-gradient(135deg, var(--gold), #cc8e00); padding: 25px; border-radius: 20px; color: black; width: 280px; margin-bottom: 40px; }
+        .fofoo-card { background: var(--card); border: 1px solid var(--border); border-radius: 25px; padding: 30px; text-align: center; width: 300px; transition: 0.4s; }
+        .fofoo-card:hover { border-color: var(--gold); transform: translateY(-5px); }
+        .btn-gold { background: var(--gold); color: black; border: none; padding: 12px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; }
+        .table-container { background: var(--card); border-radius: 15px; border: 1px solid var(--border); margin-top: 30px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: center; border-bottom: 1px solid var(--border); }
+        .status-pending { color: var(--gold); font-size: 12px; }
+        .status-success { color: #3fb950; font-size: 12px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<aside class="sidebar">
+    <div class="logo">SULTAN CARD</div>
+    <div class="nav-link active" onclick="showPage('home')"><i class="fas fa-home"></i> الرئيسية</div>
+    <div class="nav-link" onclick="showPage('deposit')"><i class="fas fa-wallet"></i> شحن المحفظة</div>
+    <div class="nav-link" onclick="showPage('history')"><i class="fas fa-history"></i> سجل العمليات</div>
+    <div style="margin-top:auto" id="auth-btn">
+        <button class="btn-gold" onclick="login()">دخول <i class="fab fa-google"></i></button>
+    </div>
+</aside>
+
+<main class="main">
+    <div id="page-home">
+        <div class="balance-card">
+            <span>رصيدك الحالي</span>
+            <h2 id="user-balance">0.00 ج.م</h2>
+        </div>
+        <h3>خدمات الشحن</h3>
+        <div class="fofoo-card">
+            <img src="https://via.placeholder.com/80/ffb100/000?text=FOFOO" style="border-radius:15px; margin-bottom:15px;">
+            <h3>فوفو شات</h3>
+            <p>100,000 عملة = 50 جنيه</p>
+            <button class="btn-gold" onclick="buyFofoo()">اشحن الآن</button>
+        </div>
+    </div>
+
+    <div id="page-deposit" class="hidden">
+        <h3>طلب رصيد محفظة</h3>
+        <div style="max-width:400px; background:var(--card); padding:20px; border-radius:15px; border:1px solid var(--border)">
+            <p>حول المبلغ لـ: <strong>01069818446</strong></p>
+            <input type="number" id="dep-amt" class="btn-gold" style="background:#000; color:#fff; margin-bottom:10px" placeholder="المبلغ">
+            <input type="text" id="dep-ph" class="btn-gold" style="background:#000; color:#fff; margin-bottom:20px" placeholder="رقم التحويل">
+            <button class="btn-gold" onclick="submitDep()">إرسال الطلب</button>
+        </div>
+    </div>
+
+    <div id="page-history" class="hidden">
+        <h3>سجل العمليات</h3>
+        <div class="table-container">
+            <table>
+                <thead><tr><th>النوع</th><th>التفاصيل</th><th>المبلغ</th><th>الحالة</th></tr></thead>
+                <tbody id="hist-body"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
+    import { getFirestore, doc, onSnapshot, setDoc, addDoc, collection, query, where, orderBy, updateDoc, increment, getDoc } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDK1wkigSJerC3U-DPDV2KEPb8fxveOii4",
+        authDomain: "nasr-card.firebaseapp.com",
+        projectId: "nasr-card",
+        storageBucket: "nasr-card.firebasestorage.app",
+        messagingSenderId: "680244255141",
+        appId: "1:680244255141:web:0633bea1f270cfe407304c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.login = () => signInWithPopup(auth, new GoogleAuthProvider());
+    window.showPage = (id) => {
+        ['home', 'deposit', 'history'].forEach(p => document.getElementById('page-'+p).classList.add('hidden'));
+        document.getElementById('page-'+id).classList.remove('hidden');
+    };
+
+    onAuthStateChanged(auth, user => {
+        if(user) {
+            document.getElementById('auth-btn').innerHTML = `<span style="color:var(--gold)">${user.displayName}</span>`;
+            const ref = doc(db, "users", user.uid);
+            onSnapshot(ref, snap => {
+                if(!snap.exists()) setDoc(ref, { name: user.displayName, email: user.email, balance: 0 });
+                else document.getElementById('user-balance').innerText = snap.data().balance.toFixed(2) + " ج.م";
+            });
+            loadHist(user.uid);
+        }
+    });
+
+    window.submitDep = async () => {
+        const amt = parseFloat(document.getElementById('dep-amt').value);
+        const ph = document.getElementById('dep-ph').value;
+        if(!amt || !ph) return Swal.fire('خطأ','أكمل البيانات','error');
+        await addDoc(collection(db, "all_orders"), { uid: auth.currentUser.uid, email: auth.currentUser.email, type: 'إيداع', amount: amt, details: ph, status: 'pending', date: new Date() });
+        Swal.fire('تم','طلبك تحت المراجعة','success');
+        showPage('history');
+    };
+
+    window.buyFofoo = async () => {
+        const { value: v } = await Swal.fire({
+            title: 'شحن فوفو', background:'#12141d', color:'#fff',
+            html: '<input id="q" class="swal2-input" type="number" value="100000"><input id="fid" class="swal2-input" placeholder="ID المستلم">',
+            preConfirm: () => ({ q: parseInt(document.getElementById('q').value), fid: document.getElementById('fid').value })
+        });
+        if(v && v.q >= 100000 && v.fid) {
+            const price = (v.q / 100000) * 50;
+            const uRef = doc(db, "users", auth.currentUser.uid);
+            const uSnap = await getDoc(uRef);
+            if(uSnap.data().balance >= price) {
+                await updateDoc(uRef, { balance: increment(-price) });
+                await addDoc(collection(db, "all_orders"), { uid: auth.currentUser.uid, type: 'شحن فوفو', amount: price, details: `الكمية: ${v.q} | ID: ${v.fid}`, status: 'pending', date: new Date() });
+                Swal.fire('نجاح','تم خصم الرصيد وجاري الشحن','success');
+            } else Swal.fire('فشل','رصيدك لا يكفي','error');
+        }
+    };
+
+    function loadHist(uid) {
+        onSnapshot(query(collection(db, "all_orders"), where("uid","==",uid), orderBy("date","desc")), snap => {
+            const b = document.getElementById('hist-body'); b.innerHTML = "";
+            snap.forEach(d => {
+                const o = d.data();
+                b.innerHTML += `<tr><td>${o.type}</td><td>${o.details}</td><td>${o.amount}</td><td class="status-${o.status}">${o.status=='pending'?'انتظار':'مكتمل'}</td></tr>`;
+            });
+        });
+    }
+</script>
+</body>
+</html>

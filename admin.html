@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لوحة المدير | سلطان كارد</title>
+    <style>
+        body { background: #090a0f; color: white; font-family: sans-serif; padding: 30px; }
+        .box { background: #12141d; padding: 20px; border-radius: 15px; border: 1px solid #22262f; margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; border-bottom: 1px solid #22262f; text-align: center; }
+        .btn { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-check { background: #ffb100; color: #000; }
+        .btn-rej { background: #ff4d4d; color: #fff; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <h1>لوحة إدارة سلطان كارد 👑</h1>
+
+    <div class="box">
+        <h2>كل الطلبات (إيداع + شحن فوفو)</h2>
+        <table>
+            <thead><tr><th>النوع</th><th>البيانات</th><th>المبلغ</th><th>الحالة</th><th>الأكشن</th></tr></thead>
+            <tbody id="admin-list"></tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, increment } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDK1wkigSJerC3U-DPDV2KEPb8fxveOii4",
+            authDomain: "nasr-card.firebaseapp.com",
+            projectId: "nasr-card",
+            storageBucket: "nasr-card.firebasestorage.app",
+            messagingSenderId: "680244255141",
+            appId: "1:680244255141:web:0633bea1f270cfe407304c"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        onSnapshot(query(collection(db, "all_orders"), where("status","==","pending")), snap => {
+            const b = document.getElementById('admin-list'); b.innerHTML = "";
+            snap.forEach(d => {
+                const o = d.data();
+                b.innerHTML += `<tr>
+                    <td>${o.type}</td><td>${o.details}</td><td>${o.amount} ج.م</td><td>معلق</td>
+                    <td>
+                        <button class="btn btn-check" onclick="approve('${d.id}', '${o.uid}', ${o.amount}, '${o.type}')">موافقة ✅</button>
+                    </td>
+                </tr>`;
+            });
+        });
+
+        window.approve = async (id, uid, amt, type) => {
+            if(type === 'إيداع') {
+                await updateDoc(doc(db, "users", uid), { balance: increment(amt) });
+            }
+            await updateDoc(doc(db, "all_orders", id), { status: 'success' });
+            alert("تم تنفيذ الطلب بنجاح!");
+        };
+    </script>
+</body>
+</html>
